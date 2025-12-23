@@ -57,3 +57,30 @@ export const formatDisplayDate = (date: string): string => {
   return format(d, "MMM d");
 };
 
+export const wasCreatedToday = (createdAt: string): boolean => {
+  const createdDate = parseISO(createdAt);
+  return isTodayFns(createdDate);
+};
+
+export const formatInputDate = (date: string): string => {
+  // Returns date in YYYY-MM-DD format for input[type="date"]
+  return date;
+};
+
+export const getDateOptions = (): { value: string; label: string }[] => {
+  const today = new Date();
+  const options: { value: string; label: string }[] = [];
+  
+  for (let i = 0; i < 14; i++) {
+    const d = addDays(today, i);
+    const value = formatDate(d);
+    let label: string;
+    if (i === 0) label = "Today";
+    else if (i === 1) label = "Tomorrow";
+    else label = format(d, "EEE, MMM d");
+    options.push({ value, label });
+  }
+  
+  return options;
+};
+

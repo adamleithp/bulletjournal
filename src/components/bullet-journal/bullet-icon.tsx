@@ -6,7 +6,6 @@ type BulletIconProps = {
   completed?: boolean;
   migrated?: boolean;
   className?: string;
-  onClick?: () => void;
 };
 
 export const BulletIcon = ({
@@ -14,13 +13,8 @@ export const BulletIcon = ({
   completed = false,
   migrated = false,
   className,
-  onClick,
 }: BulletIconProps) => {
-  const baseClasses = cn(
-    "size-4 shrink-0 transition-all duration-200",
-    onClick && "cursor-pointer hover:scale-110",
-    className
-  );
+  const baseClasses = cn("size-4 shrink-0 transition-all duration-200", className);
 
   // Task: Square (hollow when incomplete, filled when complete)
   if (type === "task") {
@@ -29,11 +23,7 @@ export const BulletIcon = ({
         <svg
           viewBox="0 0 16 16"
           className={baseClasses}
-          onClick={onClick}
-          role={onClick ? "button" : undefined}
-          tabIndex={onClick ? 0 : undefined}
           aria-label={completed ? "Completed task" : "Incomplete task"}
-          onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
         >
           <rect
             x="2"
@@ -66,10 +56,7 @@ export const BulletIcon = ({
             className="absolute -left-2.5 size-3 text-muted-foreground"
             aria-label="Migrated from previous day"
           >
-            <path
-              d="M3 8L8 4V7H13V9H8V12L3 8Z"
-              className="fill-current"
-            />
+            <path d="M3 8L8 4V7H13V9H8V12L3 8Z" className="fill-current" />
           </svg>
         )}
       </div>
@@ -93,11 +80,7 @@ export const BulletIcon = ({
       <svg
         viewBox="0 0 16 16"
         className={baseClasses}
-        onClick={onClick}
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
         aria-label={completed ? "Completed event" : "Incomplete event"}
-        onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
       >
         <circle
           cx="8"
@@ -117,4 +100,3 @@ export const BulletIcon = ({
 
   return null;
 };
-

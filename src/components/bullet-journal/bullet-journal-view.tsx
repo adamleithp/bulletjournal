@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,8 +14,8 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocalBulletItems } from "@/hooks/use-local-bullet-items";
-import { useLayoutMode, type LayoutMode } from "@/hooks/use-local-storage";
-import { getDateCategory, type DateCategory, getToday, getTomorrow } from "@/lib/date-utils";
+import { useLayoutMode, useLocalStorage, type LayoutMode } from "@/hooks/use-local-storage";
+import { getDateCategory, type DateCategory, getToday, getTomorrow, wasCreatedToday, isToday } from "@/lib/date-utils";
 import type { BulletItem as BulletItemType } from "@/lib/database.types";
 import { BulletColumn } from "./bullet-column";
 import { BulletItem } from "./bullet-item";
@@ -26,6 +26,7 @@ export const BulletJournalView = () => {
   const [layoutMode, setLayoutMode] = useLayoutMode();
   const [activeTab, setActiveTab] = useState<DateCategory>("today");
   const [activeItem, setActiveItem] = useState<BulletItemType | null>(null);
+  const [showOnlyTodayItems, setShowOnlyTodayItems] = useLocalStorage("bullet-journal-today-filter", false);
 
   // Using local storage for now. Switch to useBulletItems when Supabase is configured:
   // import { useBulletItems } from "@/hooks/use-bullet-items";
@@ -62,8 +63,20 @@ export const BulletJournalView = () => {
     })
   );
 
-  // Get items for each category
-  const todayItems = getItemsByCategory("today");
+  // Get items for each category with special filtering for "today"
+  const todayItems = useMemo(() => {
+    if (showOnlyTodayItems) {
+      // Only show items where date is actually today
+      return items
+        .filter((item) => isToday(item.date))
+        .sort((a, b) => a.order_index - b.order_index);
+    }
+    // Show items where date is today OR created today (even if target date is future)
+    return items
+      .filter((item) => isToday(item.date) || wasCreatedToday(item.created_at))
+      .sort((a, b) => a.order_index - b.order_index);
+  }, [items, showOnlyTodayItems]);
+
   const tomorrowItems = getItemsByCategory("tomorrow");
   const futureItems = getItemsByCategory("future");
 
@@ -117,12 +130,12 @@ export const BulletJournalView = () => {
       }
 
       // Check if reordering within same category
-      const activeItem = items.find((i) => i.id === activeId);
+      const activeItemData = items.find((i) => i.id === activeId);
       const overItem = items.find((i) => i.id === overId);
 
-      if (!activeItem || !overItem) return;
+      if (!activeItemData || !overItem) return;
 
-      const activeCategory = getDateCategory(activeItem.date);
+      const activeCategory = getDateCategory(activeItemData.date);
       const overCategory = getDateCategory(overItem.date);
 
       if (activeCategory === overCategory) {
@@ -152,6 +165,10 @@ export const BulletJournalView = () => {
     },
     [setLayoutMode]
   );
+
+  const handleToggleTodayFilter = useCallback(() => {
+    setShowOnlyTodayItems((prev) => !prev);
+  }, [setShowOnlyTodayItems]);
 
   if (isLoading) {
     return (
@@ -183,107 +200,111 @@ export const BulletJournalView = () => {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-        {/* Header */}
-        <header className="flex flex-wrap items-center justify-between gap-4 p-2">
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl font-bold tracking-tight"
-          >
-            Bullet Journal
-          </motion.h1>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <LayoutToggle mode={layoutMode} onModeChange={handleLayoutModeChange} />
-          </motion.div>
-        </header>
+      {/* Header */}
+      <header className="flex flex-wrap items-center justify-between gap-4 p-2">
+        <motion.h1
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-2xl font-bold tracking-tight"
+        >
+          Bullet Journal
+        </motion.h1>
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <LayoutToggle mode={layoutMode} onModeChange={handleLayoutModeChange} />
+        </motion.div>
+      </header>
 
-        {/* Single view tabs */}
-        {layoutMode === "single" && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center"
-          >
-            <SingleViewTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              itemCounts={itemCounts}
-            />
-          </motion.div>
-        )}
+      {/* Single view tabs */}
+      {layoutMode === "single" && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center"
+        >
+          <SingleViewTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            itemCounts={itemCounts}
+          />
+        </motion.div>
+      )}
 
-        {/* Content */}
-        <div className="flex grow overflow-hidden">
-          <AnimatePresence mode="wait">
-            {layoutMode === "single" ? (
-              <motion.div
-                key={`single-${activeTab}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
-                <BulletColumn
-                  title={activeTab === "today" ? "Today" : activeTab === "tomorrow" ? "Tomorrow" : "Future"}
-                  category={activeTab}
-                  items={
-                    activeTab === "today"
-                      ? todayItems
-                      : activeTab === "tomorrow"
-                        ? tomorrowItems
-                        : futureItems
-                  }
-                  onUpdate={updateItem}
-                  onDelete={deleteItem}
-                  onToggleComplete={toggleComplete}
-                  onCreate={createItem}
-                  isActive
-                  isSingleView
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="multiple"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex grow gap-4 overflow-x-auto"
-              >
-                <BulletColumn
-                  title="Today"
-                  category="today"
-                  items={todayItems}
-                  onUpdate={updateItem}
-                  onDelete={deleteItem}
-                  onToggleComplete={toggleComplete}
-                  onCreate={createItem}
-                />
-                <BulletColumn
-                  title="Tomorrow"
-                  category="tomorrow"
-                  items={tomorrowItems}
-                  onUpdate={updateItem}
-                  onDelete={deleteItem}
-                  onToggleComplete={toggleComplete}
-                  onCreate={createItem}
-                />
-                <BulletColumn
-                  title="Future"
-                  category="future"
-                  items={futureItems}
-                  onUpdate={updateItem}
-                  onDelete={deleteItem}
-                  onToggleComplete={toggleComplete}
-                  onCreate={createItem}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Content */}
+      <div className="flex grow overflow-hidden">
+        <AnimatePresence mode="wait">
+          {layoutMode === "single" ? (
+            <motion.div
+              key={`single-${activeTab}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="h-full"
+            >
+              <BulletColumn
+                title={activeTab === "today" ? "Today" : activeTab === "tomorrow" ? "Tomorrow" : "Future"}
+                category={activeTab}
+                items={
+                  activeTab === "today"
+                    ? todayItems
+                    : activeTab === "tomorrow"
+                      ? tomorrowItems
+                      : futureItems
+                }
+                onUpdate={updateItem}
+                onDelete={deleteItem}
+                onToggleComplete={toggleComplete}
+                onCreate={createItem}
+                isActive
+                isSingleView
+                showOnlyTargetDate={showOnlyTodayItems}
+                onToggleFilter={activeTab === "today" ? handleToggleTodayFilter : undefined}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="multiple"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex grow gap-4 overflow-x-auto"
+            >
+              <BulletColumn
+                title="Today"
+                category="today"
+                items={todayItems}
+                onUpdate={updateItem}
+                onDelete={deleteItem}
+                onToggleComplete={toggleComplete}
+                onCreate={createItem}
+                showOnlyTargetDate={showOnlyTodayItems}
+                onToggleFilter={handleToggleTodayFilter}
+              />
+              <BulletColumn
+                title="Tomorrow"
+                category="tomorrow"
+                items={tomorrowItems}
+                onUpdate={updateItem}
+                onDelete={deleteItem}
+                onToggleComplete={toggleComplete}
+                onCreate={createItem}
+              />
+              <BulletColumn
+                title="Future"
+                category="future"
+                items={futureItems}
+                onUpdate={updateItem}
+                onDelete={deleteItem}
+                onToggleComplete={toggleComplete}
+                onCreate={createItem}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Drag overlay */}
       <DragOverlay>
@@ -301,4 +322,3 @@ export const BulletJournalView = () => {
     </DndContext>
   );
 };
-

@@ -5,10 +5,12 @@ import {
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { motion } from "motion/react";
+import { Filter } from "lucide-react";
 import type { BulletItem as BulletItemType, BulletItemUpdate, BulletType } from "@/lib/database.types";
 import type { DateCategory } from "@/lib/date-utils";
 import { getToday, getTomorrow } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { BulletItem } from "./bullet-item";
 import { NewBulletInput } from "./new-bullet-input";
 
@@ -22,6 +24,8 @@ type BulletColumnProps = {
   onCreate: (content: string, type: BulletType, date: string) => Promise<BulletItemType | null>;
   isActive?: boolean;
   isSingleView?: boolean;
+  showOnlyTargetDate?: boolean;
+  onToggleFilter?: () => void;
 };
 
 export const BulletColumn = ({
@@ -34,28 +38,27 @@ export const BulletColumn = ({
   onCreate,
   isActive = false,
   isSingleView = false,
+  showOnlyTargetDate = false,
+  onToggleFilter,
 }: BulletColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: category });
 
   const getDateForCategory = useCallback((cat: DateCategory): string => {
     if (cat === "today") return getToday();
     if (cat === "tomorrow") return getTomorrow();
-    // For future, use a date 2 days from now as default
     const future = new Date();
     future.setDate(future.getDate() + 2);
     return future.toISOString().split("T")[0];
   }, []);
 
   const handleCreate = useCallback(
-    async (content: string, type: BulletType) => {
-      const date = getDateForCategory(category);
+    async (content: string, type: BulletType, date: string) => {
       await onCreate(content, type, date);
     },
-    [category, getDateForCategory, onCreate]
+    [onCreate]
   );
 
-  // Show date for future items
-  const showDate = category === "future";
+  const defaultDate = getDateForCategory(category);
 
   return (
     <motion.div
@@ -69,19 +72,28 @@ export const BulletColumn = ({
         isOver && "ring-2 ring-primary/30",
         isActive && "ring-2 ring-primary"
       )}
-      onClick={() => {
-        
-        console.log("clicked");
-      }}
     >
       {/* Header */}
-      <div className="mb-4 rounded-md p-2">
-        <h2 className="text-lg font-semibold tracking-tight">
-          {title}
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          {items.length} {items.length === 1 ? "item" : "items"}
-        </p>
+      <div className="mb-4 flex items-start justify-between rounded-md p-2">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <p className="text-xs text-muted-foreground">
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </p>
+        </div>
+
+        {/* Filter toggle - only show for "today" column */}
+        {category === "today" && onToggleFilter && (
+          <Button
+            size="icon-xs"
+            variant={showOnlyTargetDate ? "default" : "ghost"}
+            onClick={onToggleFilter}
+            aria-label={showOnlyTargetDate ? "Show all items created today" : "Show only today's items"}
+            title={showOnlyTargetDate ? "Showing only today's items" : "Showing all items created today"}
+          >
+            <Filter className="size-3.5" />
+          </Button>
+        )}
       </div>
 
       {/* Items list */}
@@ -98,7 +110,6 @@ export const BulletColumn = ({
                 onUpdate={onUpdate}
                 onDelete={onDelete}
                 onToggleComplete={onToggleComplete}
-                showDate={showDate}
                 isDraggingOver={isOver}
               />
             ))}
@@ -113,8 +124,7 @@ export const BulletColumn = ({
       </div>
 
       {/* New item input */}
-      <NewBulletInput onCreate={handleCreate} />
+      <NewBulletInput onCreate={handleCreate} defaultDate={defaultDate} />
     </motion.div>
   );
 };
-
