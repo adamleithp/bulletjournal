@@ -108,14 +108,13 @@ export const BulletColumn = ({
 
         {/* Filter toggle - only show for "today" column */}
         {category === "today" && onToggleFilter && (
-          <Tooltip.Trigger payload={{ text: 'Show only today\'s items' }} handle={tooltipHandle}>
+          <Tooltip.Trigger payload={{ text: showOnlyTargetDate ? "Showing only today's items" : "Showing all items created today" }} handle={tooltipHandle}>
 
           <Button
             size="icon-xs"
             variant={showOnlyTargetDate ? "default" : "ghost"}
             onClick={onToggleFilter}
             aria-label={showOnlyTargetDate ? "Show all items created today" : "Show only today's items"}
-            title={showOnlyTargetDate ? "Showing only today's items" : "Showing all items created today"}
             >
             <Filter className="size-3.5" />
           </Button>

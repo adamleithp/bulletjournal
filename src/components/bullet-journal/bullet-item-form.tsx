@@ -13,9 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
-import { Toggle, ToggleGroup, Toolbar } from '@base-ui/react'
+import { Toggle, ToggleGroup, Toolbar, Tooltip } from '@base-ui/react'
 import { BulletItemTypeToggle } from './bullet-item-type-toggle'
 import { BulletIconForm } from './bullet-icon-form'
+import { tooltipHandle } from '@/routes/__root'
 
 const bulletTypes: {
   type: BulletType
@@ -150,9 +151,8 @@ export const BulletItemForm = ({
     >
       {/* Content input */}
       <div className="flex items-start gap-2">
-      
-      {/* presentational icon */}
-      <BulletIconForm
+        {/* presentational icon */}
+        <BulletIconForm
           item={{
             id: item?.id ?? '',
             type: selectedType,
@@ -214,35 +214,47 @@ export const BulletItemForm = ({
         />
       </div>
 
-      <div className="flex h-px bg-border -mx-2"/>
+      <div className="flex h-px bg-border -mx-2" />
 
       <div className="flex items-center gap-1 justify-between">
         <div className="flex items-center gap-1 -ml-1">
-          <BulletItemTypeToggle 
-            selectedType={selectedType} 
-            setSelectedType={setSelectedType} 
-           />
+          <BulletItemTypeToggle
+            selectedType={selectedType}
+            setSelectedType={setSelectedType}
+          />
           <DatePickerDropdown value={selectedDate} onChange={setSelectedDate} />
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={onCancel}
-            aria-label="Cancel"
+          <Tooltip.Trigger payload={{ text: 'Cancel' }} handle={tooltipHandle}>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={onCancel}
+              aria-label="Cancel"
+            >
+              <span className="sr-only">Cancel</span>
+              <X className="size-3.5" />
+            </Button>
+          </Tooltip.Trigger>
+
+          <Tooltip.Trigger
+            payload={{ text: isEditMode ? 'Save' : 'Add' }}
+            handle={tooltipHandle}
           >
-            <span className="sr-only">Cancel</span>
-            <X className="size-3.5" />
-          </Button>
-          <Button
-            size="icon-xs"
-            onClick={handleSubmit}
-            disabled={!content.trim()}
-            aria-label={isEditMode ? 'Save' : 'Add'}
-          >
-            <span className="sr-only">{isEditMode ? 'Save' : 'Add'}</span>
-            {isEditMode ? <Save className="size-3.5" /> : <Plus className="size-3.5" />}
-          </Button>
+            <Button
+              size="icon-xs"
+              onClick={handleSubmit}
+              disabled={!content.trim()}
+              aria-label={isEditMode ? 'Save' : 'Add'}
+            >
+              <span className="sr-only">{isEditMode ? 'Save' : 'Add'}</span>
+              {isEditMode ? (
+                <Save className="size-3.5" />
+              ) : (
+                <Plus className="size-3.5" />
+              )}
+            </Button>
+          </Tooltip.Trigger>
         </div>
       </div>
     </div>
