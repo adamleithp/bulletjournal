@@ -53,7 +53,7 @@ export const BulletIcon = ({
         {migrated && (
           <svg
             viewBox="0 0 16 16"
-            className="absolute -left-2.5 size-3 text-muted-foreground"
+            className="bullet-icon-migrated rotate-180 absolute -left-2.5 size-3 text-muted-foreground"
             aria-label="Migrated from previous day"
           >
             <path d="M3 8L8 4V7H13V9H8V12L3 8Z" className="fill-current" />

@@ -1,18 +1,16 @@
-import { useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
-import { motion } from "motion/react";
-import { Filter } from "lucide-react";
+import { Filter, Plus } from "lucide-react";
 import type { BulletItem as BulletItemType, BulletItemUpdate, BulletType } from "@/lib/database.types";
 import type { DateCategory } from "@/lib/date-utils";
 import { getToday, getTomorrow } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BulletItem } from "./bullet-item";
-import { NewBulletInput } from "./new-bullet-input";
 
 type BulletColumnProps = {
   title: string;
@@ -42,6 +40,8 @@ export const BulletColumn = ({
   onToggleFilter,
 }: BulletColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: category });
+  const [editingNewItemId, setEditingNewItemId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const getDateForCategory = useCallback((cat: DateCategory): string => {
     if (cat === "today") return getToday();
@@ -51,30 +51,52 @@ export const BulletColumn = ({
     return future.toISOString().split("T")[0];
   }, []);
 
-  const handleCreate = useCallback(
-    async (content: string, type: BulletType, date: string) => {
-      await onCreate(content, type, date);
-    },
-    [onCreate]
-  );
+  // Scroll to bottom when new item is created
+  useEffect(() => {
+    if (editingNewItemId && listRef.current) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollTo({
+          top: listRef.current.scrollHeight,
+          behavior: "instant",
+        });
+      });
+    }
+  }, [editingNewItemId]);
 
-  const defaultDate = getDateForCategory(category);
+  const handleAddNewItem = useCallback(async () => {
+    const defaultDate = getDateForCategory(category);
+    // Create an empty item that starts in edit mode
+    const newItem = await onCreate("", "task", defaultDate);
+    if (newItem) {
+      setEditingNewItemId(newItem.id);
+    }
+  }, [category, getDateForCategory, onCreate]);
+
+  const handleEditEnd = useCallback(() => {
+    setEditingNewItemId(null);
+  }, []);
+
+  // When saving a new item, create another one for continuous creation
+  const handleSaveAndContinue = useCallback(async () => {
+    setEditingNewItemId(null);
+    // Small delay to allow the current item to finish saving
+    requestAnimationFrame(() => {
+      handleAddNewItem();
+    });
+  }, [handleAddNewItem]);
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: category === "today" ? 0 : category === "tomorrow" ? 0.1 : 0.2 }}
       className={cn(
-        "flex grow flex-col p-2 hover:bg-muted/10",
-        isSingleView ? "w-full max-w-xl mx-auto" : "flex-1 min-w-[280px]",
+        "flex flex-col p-2 hover:bg-muted/10 overflow-hidden",
+        isSingleView ? "w-full max-w-xl mx-auto grow" : "flex-1 min-w-[280px]",
         isOver && "ring-2 ring-primary/30",
         isActive && "ring-2 ring-primary"
       )}
     >
       {/* Header */}
-      <div className="mb-4 flex items-start justify-between rounded-md p-2">
+      <div className="mb-4 flex items-start justify-between rounded-md p-2 shrink-0">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="text-xs text-muted-foreground">
@@ -96,23 +118,30 @@ export const BulletColumn = ({
         )}
       </div>
 
-      {/* Items list */}
-      <div className="flex-1">
+      {/* Items list - scrollable */}
+      <div ref={listRef} className="flex-1 min-h-0">
         <SortableContext
           items={items.map((item) => item.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="flex flex-col gap-0.5">
-            {items.map((item) => (
-              <BulletItem
-                key={item.id}
-                item={item}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-                onToggleComplete={onToggleComplete}
-                isDraggingOver={isOver}
-              />
-            ))}
+            {items.map((item) => {
+              const isNewItem = item.id === editingNewItemId;
+              return (
+                <BulletItem
+                  key={item.id}
+                  item={item}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  onToggleComplete={onToggleComplete}
+                  isDraggingOver={isOver}
+                  startEditing={isNewItem}
+                  isNewItem={isNewItem}
+                  onEditEnd={isNewItem ? handleEditEnd : undefined}
+                  onSaveAndContinue={isNewItem ? handleSaveAndContinue : undefined}
+                />
+              );
+            })}
           </div>
         </SortableContext>
 
@@ -123,8 +152,18 @@ export const BulletColumn = ({
         )}
       </div>
 
-      {/* New item input */}
-      <NewBulletInput onCreate={handleCreate} defaultDate={defaultDate} />
-    </motion.div>
+      {/* Add new item button */}
+      <div className="mt-2 shrink-0">
+        <button
+          type="button"
+          onClick={handleAddNewItem}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          aria-label="Add new item"
+        >
+          <Plus className="size-4" />
+          <span>Add new item...</span>
+        </button>
+      </div>
+    </div>
   );
 };

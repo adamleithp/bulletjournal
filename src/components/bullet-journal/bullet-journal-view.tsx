@@ -309,7 +309,7 @@ export const BulletJournalView = () => {
       {/* Drag overlay */}
       <DragOverlay>
         {activeItem && (
-          <div className="rounded-md border border-primary/30 bg-card p-2 shadow-lg">
+          <div className="bg-card shadow-lg rounded-lg">
             <BulletItem
               item={activeItem}
               onUpdate={updateItem}

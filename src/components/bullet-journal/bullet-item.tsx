@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { motion, AnimatePresence } from "motion/react";
 import { Trash2 } from "lucide-react";
 import type { BulletItem as BulletItemType, BulletItemUpdate, BulletType } from "@/lib/database.types";
 import { formatDisplayDate, isToday } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { BulletIcon } from "./bullet-icon";
 import { BulletItemForm } from "./bullet-item-form";
+import { BulletIconForm } from "./bullet-icon-form";
 
 type BulletItemProps = {
   item: BulletItemType;
@@ -16,6 +16,14 @@ type BulletItemProps = {
   onToggleComplete: (id: string) => Promise<void>;
   showDate?: boolean;
   isDraggingOver?: boolean;
+  /** If true, start in edit mode (for newly created items) */
+  startEditing?: boolean;
+  /** If true, this is a newly created item (enables continuous creation) */
+  isNewItem?: boolean;
+  /** Callback when editing ends (cancel or blur) */
+  onEditEnd?: () => void;
+  /** Callback when saving a new item - triggers continuous creation */
+  onSaveAndContinue?: () => void;
 };
 
 export const BulletItem = ({
@@ -25,8 +33,13 @@ export const BulletItem = ({
   onToggleComplete,
   showDate = false,
   isDraggingOver = false,
+  startEditing = false,
+  isNewItem = false,
+  onEditEnd,
+  onSaveAndContinue,
 }: BulletItemProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startEditing);
+  const itemRef = useRef<HTMLDivElement>(null);
 
   const {
     attributes,
@@ -42,10 +55,19 @@ export const BulletItem = ({
     transition,
   };
 
-  // Reset editing state when item changes
+  // Scroll into view when starting to edit
   useEffect(() => {
-    setIsEditing(false);
-  }, [item.id]);
+    if (isEditing && itemRef.current) {
+      itemRef.current.scrollIntoView({ behavior: "instant", block: "nearest" });
+    }
+  }, [isEditing]);
+
+  // Start editing when startEditing prop changes to true
+  useEffect(() => {
+    if (startEditing) {
+      setIsEditing(true);
+    }
+  }, [startEditing]);
 
   const handleSave = useCallback(
     async (content: string, type: BulletType, date: string) => {
@@ -63,13 +85,25 @@ export const BulletItem = ({
         await onUpdate(item.id, updates);
       }
       setIsEditing(false);
+      
+      // If this is a new item, trigger continuous creation
+      if (isNewItem && onSaveAndContinue) {
+        onSaveAndContinue();
+      } else {
+        onEditEnd?.();
+      }
     },
-    [item.content, item.date, item.type, item.id, onUpdate]
+    [item.content, item.date, item.type, item.id, onUpdate, onEditEnd, onSaveAndContinue, isNewItem]
   );
 
-  const handleCancel = useCallback(() => {
+  const handleCancel = useCallback(async () => {
+    // If this is an empty item, delete it
+    if (!item.content.trim()) {
+      await onDelete(item.id);
+    }
     setIsEditing(false);
-  }, []);
+    onEditEnd?.();
+  }, [item.content, item.id, onDelete, onEditEnd]);
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent) => {
@@ -89,109 +123,77 @@ export const BulletItem = ({
     [item.id, onDelete]
   );
 
-  const handleToggleComplete = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (item.type === "task" || item.type === "event") {
-        await onToggleComplete(item.id);
-      }
-    },
-    [item.id, item.type, onToggleComplete]
-  );
 
-  const canComplete = item.type === "task" || item.type === "event";
+
   const itemIsNotToday = !isToday(item.date);
 
   return (
-    <motion.div
-      ref={setNodeRef}
+    <div
+      ref={(node) => {
+        setNodeRef(node);
+        (itemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       style={style}
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      layout
       {...(isEditing ? {} : { ...attributes, ...listeners })}
       className={cn(
-        "group relative rounded-md border border-transparent transition-all duration-200",
+        "group relative rounded-md border border-transparent",
         isDragging && "z-50 opacity-50",
         isDraggingOver && "border-primary/30 bg-primary/5",
-        !isEditing && "flex items-start gap-2 px-2 py-1.5 cursor-grab hover:bg-muted/50",
-        !isEditing && isDragging && "cursor-grabbing"
       )}
     >
-      <AnimatePresence mode="wait">
-        {isEditing ? (
-          <BulletItemForm
-            key="editing"
+      {isEditing ? (
+        <BulletItemForm
+          key="editing"
+          item={item}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          onBlurClose={handleCancel}
+          className="flex flex-col gap-2 rounded-md bg-card shadow-sm p-2 border border-transparent focus-within:border-primary/30"
+        />
+      ) : (
+        <div className={cn("bullet-item-content flex min-w-0 flex-1 rounded-md items-start gap-2 cursor-grab hover:bg-muted/50 p-2", isDragging && "cursor-grabbing")}>
+          {/* Bullet Icon */}
+          <BulletIconForm
             item={item}
-            onSave={handleSave}
-            onCancel={handleCancel}
-            onBlurClose={handleCancel}
+            onToggleComplete={onToggleComplete}
           />
-        ) : (
-          <motion.div
-            key="display"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex min-w-0 flex-1 items-start gap-2"
-          >
-            {/* Bullet Icon */}
+
+          {/* Content */}
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div
-              className="mt-0.5 shrink-0"
-              onClick={canComplete ? handleToggleComplete : undefined}
-              onKeyDown={
-                canComplete
-                  ? (e) => e.key === "Enter" && handleToggleComplete(e as unknown as React.MouseEvent)
-                  : undefined
-              }
-              role={canComplete ? "button" : undefined}
-              tabIndex={canComplete ? 0 : undefined}
-            >
-              <BulletIcon
-                type={item.type}
-                completed={item.completed}
-                migrated={item.migrated}
-              />
-            </div>
-
-            {/* Content */}
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <div
-                onClick={handleContentClick}
-                onKeyDown={(e) => e.key === "Enter" && handleContentClick(e as unknown as React.MouseEvent)}
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  "min-h-6 w-full cursor-text whitespace-pre-wrap text-sm leading-relaxed",
-                  item.completed && "text-muted-foreground line-through"
-                )}
-                aria-label="Click to edit"
-              >
-                {item.content}
-              </div>
-
-              {/* Date badge - show if not today or if showDate prop is true */}
-              {(showDate || itemIsNotToday) && (
-                <span className="text-xs text-muted-foreground">
-                  {formatDisplayDate(item.date)}
-                </span>
-              )}
-            </div>
-
-            {/* Delete button */}
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="mt-0.5 shrink-0 text-muted-foreground/40 opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
-              aria-label="Delete item"
+              onClick={handleContentClick}
+              onKeyDown={(e) => e.key === "Enter" && handleContentClick(e as unknown as React.MouseEvent)}
+              role="button"
               tabIndex={0}
+              className={cn(
+                "min-h-6 w-full cursor-text whitespace-pre-wrap text-sm leading-relaxed hover:bg-muted/50 rounded-sm",
+                item.completed && "text-muted-foreground line-through"
+              )}
+              aria-label="Click to edit"
             >
-              <Trash2 className="size-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+              {item.content}
+            </div>
+
+            {/* Date badge - show if not today or if showDate prop is true */}
+            {(showDate || itemIsNotToday) && (
+              <span className="text-xs text-muted-foreground">
+                {formatDisplayDate(item.date)}
+              </span>
+            )}
+          </div>
+
+          {/* Delete button */}
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="mt-0.5 shrink-0 text-muted-foreground/40 opacity-0 hover:text-destructive group-hover:opacity-100"
+            aria-label="Delete item"
+            tabIndex={0}
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 };

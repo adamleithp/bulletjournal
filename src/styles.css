@@ -158,3 +158,8 @@
     outline-offset: 2px;
   }
 }
+
+
+.bullet-item {
+  @apply flex items-start gap-2 cursor-grab;
+}
