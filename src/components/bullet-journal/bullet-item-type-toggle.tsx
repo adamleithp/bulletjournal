@@ -20,14 +20,14 @@ export const BulletItemTypeToggle = ({
           key={type}
           value={type}
           onFocus={() => setSelectedType(type)}
-          render={(props, state) => {
+          render={(props) => {
             return (
               <Button
                 variant="ghost"
                 size="xs"
                 className="px-1"
                 {...props}
-                aria-pressed={state.pressed}
+                aria-pressed={selectedType === type}
               >
                 {icon}
                 {label}

@@ -11,6 +11,8 @@ import { getToday, getTomorrow } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BulletItem } from "./bullet-item";
+import { Tooltip } from "@base-ui/react";
+import { tooltipHandle } from "@/routes/__root";
 
 type BulletColumnProps = {
   title: string;
@@ -106,15 +108,18 @@ export const BulletColumn = ({
 
         {/* Filter toggle - only show for "today" column */}
         {category === "today" && onToggleFilter && (
+          <Tooltip.Trigger payload={{ text: 'Show only today\'s items' }} handle={tooltipHandle}>
+
           <Button
             size="icon-xs"
             variant={showOnlyTargetDate ? "default" : "ghost"}
             onClick={onToggleFilter}
             aria-label={showOnlyTargetDate ? "Show all items created today" : "Show only today's items"}
             title={showOnlyTargetDate ? "Showing only today's items" : "Showing all items created today"}
-          >
+            >
             <Filter className="size-3.5" />
           </Button>
+            </Tooltip.Trigger>
         )}
       </div>
 
@@ -167,3 +172,8 @@ export const BulletColumn = ({
     </div>
   );
 };
+
+
+function InfoContent() {
+  return <span>Delete this item</span>;
+}
