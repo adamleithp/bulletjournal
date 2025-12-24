@@ -1,4 +1,6 @@
-# TanStack Start + shadcn/ui
+# Bullet Journal
+
+A quick app built to make events, tasks or notes across today/tomorrow/future. Tasks not completed yesterday are migrated to today.
 
 This is a template for a new TanStack Start project with React, TypeScript, and shadcn/ui.
 
