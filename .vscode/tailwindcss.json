@@ -50,6 +50,16 @@
           "url": "https://tailwindcss.com/docs/functions-and-directives#variants"
         }
       ]
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Use the `@custom-variant` directive to create a custom variant of your own utilities by wrapping their definitions in the `@custom-variant` directive:\n```css\n@custom-variant dark (&:is(.dark *));\n```\n",
+      "references": [
+        {
+          "name": "Tailwind Documentation",
+          "url": "https://tailwindcss.com/docs/functions-and-directives#custom-variant"
+        }
+      ]
     }
   ]
 }

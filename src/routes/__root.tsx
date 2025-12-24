@@ -8,7 +8,6 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 
 import { Tooltip } from '@base-ui/react'
-import { ArrowBigDown } from 'lucide-react'
 import appCss from '../styles.css?url'
 
 export const tooltipHandle = Tooltip.createHandle<{ text: string }>()
@@ -58,7 +57,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Tooltip.Provider>
           {children}
 
-          <Tooltip.Root handle={tooltipHandle}>
+          <Tooltip.Root 
+            handle={tooltipHandle} 
+            // Use popover instead of hoverable popup
+            disableHoverablePopup
+          >
             {({ payload }) => {
               return (
                 <Tooltip.Portal>
@@ -78,52 +81,38 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                   h-(--popup-height,auto) w-(--popup-width,auto)
                   max-w-[500px]
                   rounded-md
-                  bg-[canvas]
+                  bg-card
+                  border
                   text-sm
+                  text-foreground
                   origin-(--transform-origin)
-                  shadow-lg shadow-gray-200 outline-1 outline-gray-200
+                  shadow-lg ring-1 ring-border
                   transition-[width,height,opacity,scale]
                   duration-[0.35s]
                   ease-[cubic-bezier(0.22,1,0.36,1)]
                   data-ending-style:opacity-0 data-ending-style:scale-90
                   data-instant:transition-none
-                  data-starting-style:opacity-0 data-starting-style:scale-90
-                  dark:shadow-none dark:outline-gray-300 dark:-outline-offset-1"
+                  data-starting-style:opacity-0 data-starting-style:scale-90"
                     >
-                      <Tooltip.Arrow
-                        className="
-                    flex
-                    transition-[left]
-                    duration-[0.35s]
-                    ease-[cubic-bezier(0.22,1,0.36,1)]
-                    data-instant:transition-none
-                    data-[side=bottom]:-top-2 data-[side=bottom]:rotate-0
-                    data-[side=left]:right-[-13px] data-[side=left]:rotate-90
-                    data-[side=right]:left-[-13px] data-[side=right]:-rotate-90
-                    data-[side=top]:-bottom-2 data-[side=top]:rotate-180"
-                      >
-                        <ArrowBigDown />
-                      </Tooltip.Arrow>
-
                       <Tooltip.Viewport
                         className="
                     [--viewport-inline-padding:0.5rem]
                     relative
                     h-full w-full
                     overflow-clip
-                    px-[var(--viewport-inline-padding)] py-1
-                    [&_[data-previous]]:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding))]
-                    [&_[data-previous]]:translate-x-0
-                    [&_[data-previous]]:opacity-100
-                    [&_[data-previous]]:transition-[translate,opacity]
-                    [&_[data-previous]]:duration-[350ms,175ms]
-                    [&_[data-previous]]:ease-[cubic-bezier(0.22,1,0.36,1)]
-                    [&_[data-current]]:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding))]
-                    [&_[data-current]]:translate-x-0
-                    [&_[data-current]]:opacity-100
-                    [&_[data-current]]:transition-[translate,opacity]
-                    [&_[data-current]]:duration-[350ms,175ms]
-                    [&_[data-current]]:ease-[cubic-bezier(0.22,1,0.36,1)]
+                    px-(--viewport-inline-padding) py-1
+                    **:data-previous:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding))]
+                    **:data-previous:translate-x-0
+                    **:data-previous:opacity-100
+                    **:data-previous:transition-[translate,opacity]
+                    **:data-previous:duration-[350ms,175ms]
+                    **:data-previous:ease-[cubic-bezier(0.22,1,0.36,1)]
+                    **:data-current:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding))]
+                    **:data-current:translate-x-0
+                    **:data-current:opacity-100
+                    **:data-current:transition-[translate,opacity]
+                    **:data-current:duration-[350ms,175ms]
+                    **:data-current:ease-[cubic-bezier(0.22,1,0.36,1)]
                     data-[activation-direction~='left']:[&_[data-current][data-starting-style]]:-translate-x-1/2
                     data-[activation-direction~='left']:[&_[data-current][data-starting-style]]:opacity-0
                     data-[activation-direction~='right']:[&_[data-current][data-starting-style]]:translate-x-1/2
